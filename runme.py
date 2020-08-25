@@ -1,114 +1,75 @@
 import pygame
 from pygame.time import Clock
 
-import random
+from clacks import Clacks
+
+pygame.init()
 
 width = 1920
 height = 1080
 
-clock = Clock()
+clacks = Clacks()
 
-screen = pygame.display.set_mode((width,height))
+clacks.clock = Clock()
 
+screen = pygame.display.set_mode((width,height), display=2)
 
-back = pygame.image.load("assets/lightning/ie-1.png")
+# Part 1 - Initial Setup and throw something on the screen
 
-inner = [
-    pygame.image.load("assets/lightning/i-1.png"),
-    pygame.image.load("assets/lightning/i-2.png"),
-    pygame.image.load("assets/lightning/i-3.png")
-]
+from modes.LogoOne import LogoOne
 
-outer = [
-    pygame.image.load("assets/lightning/o-1.png"),
-    pygame.image.load("assets/lightning/o-2.png"),
-    pygame.image.load("assets/lightning/o-3.png")
-]
+current_screen = LogoOne(clacks, (width,height))
 
-ul = [
-    pygame.image.load("assets/lightning/ul-1.png"),
-    pygame.image.load("assets/lightning/ul-2.png"),
-    pygame.image.load("assets/lightning/ul-3.png")
-]
+screens = {
+    "Logo": current_screen
+}
+screens['Logo'].enter_screen()
+screen.blit(screens['Logo'].render(), (0,0))
+pygame.display.flip()
 
-ur = [
-    pygame.image.load("assets/lightning/ur-1.png"),
-    pygame.image.load("assets/lightning/ur-2.png"),
-    pygame.image.load("assets/lightning/ur-3.png")
-]
+# Part 2 - now load everything else
 
-ll = [
-    pygame.image.load("assets/lightning/ll-1.png"),
-    pygame.image.load("assets/lightning/ll-2.png"),
-    pygame.image.load("assets/lightning/ll-3.png")
-]
+for key,val in clacks.custom_events.items():
+    clacks.custom_events[key] = pygame.event.custom_type()
 
-lr = [
-    pygame.image.load("assets/lightning/lr-1.png"),
-    pygame.image.load("assets/lightning/lr-2.png"),
-    pygame.image.load("assets/lightning/lr-3.png")
-]
+from modes.Message import Message
+screens['Message'] = Message(clacks, (width, height))
 
-upper_left = 0
-lower_left = 0
-lower_right = 0
-upper_right = 0
+import webserver
 
-alive = True
+webserver.run_webserver(clacks)
 
+# Part 3 - enter the mega loop
 
-def lightning(screen, control, images):
-    if control == 0:
-        if random.random() > 0.95:
-                control = random.choice((3,5,7))
-
-    else:
-        control += random.choice((0,0,0,0,0,0,0,0,1,2,3))
-
-    if control > 0:
-        
-        options = ( (True, False, False), (False, True, False), (False, False, True),
-                    (True, True, False), (True, False, True), (False, True, True),
-                    (True, True, True) )
-        this_time = random.choice(options)
-
-        for x in range(3):
-            if this_time[x]:
-                screen.blit(images[x], (0,0))
-
-        control -= 1
-    return control
-
-while alive:
+while clacks.alive:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             print("Bye Bye")
             pygame.display.quit()
-            alive = False
+            clacks.alive = False
 
         if event.type == pygame.KEYDOWN:
             print("KEy pressed - closing")
             pygame.display.quit()
-            alive = False
+            clacks.alive = False
 
-    if alive:
+        if event.type == clacks.custom_events['MESSAGE']:
+            print("Message! flipping to message")
+            current_screen.exit_screen()
+            current_screen = screens['Message']
+            current_screen.enter_screen()
+            current_screen.handle_event(event)
+
+        if event.type == clacks.custom_events['RESUME']:
+            print("Message! flipping to message")
+            current_screen.exit_screen()
+            current_screen = screens['Logo']
+            current_screen.enter_screen()
+            current_screen.handle_event(event)
+            
+
+    if clacks.alive:
         screen.fill((0,0,0))
-
-        # Fill out here
-        screen.blit(back, (0,0))
-
-        for img in inner:
-            if random.random() > 0.1:
-                screen.blit(img, (0,0))
-
-        for img in outer:
-            if random.random() > 0.1:
-                screen.blit(img, (0,0))
-
-        upper_left = lightning(screen, upper_left, ul)
-        upper_right = lightning(screen, upper_right, ur)
-        lower_left = lightning(screen, lower_left, ll)
-        lower_right = lightning(screen, lower_right, lr)
-
+        screen.blit(current_screen.render(), (0,0))
         pygame.display.flip()
-        clock.tick(15)
+        clacks.clock.tick(15)
